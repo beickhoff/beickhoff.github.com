@@ -85,7 +85,7 @@ We establish the following observable manager state.  We then execute the provid
 - Composite mutation broadcasts are intercepted.
 - Reads of independent nodes return the cached value.  If no value has been cached, we fall back on normal operation.
 - Writes to dependent nodes operate normally since they have no direct effect.
-- Reevaluation broadcasts do not occur.  They are only ever caused by other types of broadcasts, which we intercept.
+- Reevaluation broadcasts are discarded.  They are usually caused by other types of broadcasts, which we intercept.  They may also occur if a new dependent node is constructed.  These can be discarded because nothing is observing the new node.
 - Reads of dependent nodes operate normally.
 
 **Commit Phase**
