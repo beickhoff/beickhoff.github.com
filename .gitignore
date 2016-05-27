@@ -1,5 +1,6 @@
 ._*
 build/
+_cache/
 *.class
 .DS_Store
 *.[ejw]ar
@@ -12,6 +13,8 @@ build/
 *.log
 .nrepl-port
 *.py[cdo]
+_site/
+.stack-work/
 *.swp
 .tags
 target/

@@ -1,0 +1,47 @@
+/* Based on the highlight.js style github.css */
+
+pre.sourceCode {
+  display: block;
+  padding: 0.5em;
+  color: #333;
+  background: #f8f8f8;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.sourceCode .co {
+  color: #998;
+  font-style: italic;
+}
+
+.sourceCode .dt {
+  color: #458;
+  font-weight: bold;
+}
+
+.sourceCode .st,
+.sourceCode .ch,
+.sourceCode .dv,
+.sourceCode .fl,
+.sourceCode .bn {
+  color: #009926;
+}
+
+.sourceCode .kw {
+  color: #0086b3;
+}
+
+.delta-deletion {
+  background: #fdd;
+}
+
+.delta-addition {
+  background: #dfd;
+}
+
+/*color: #008080;*/
+/*color: #d14;*/
+/*color: #900; font-weight: bold;*/
+/*color: #000080; font-weight: normal;*/
+/*color: #990073;*/
+/*color: #999; font-weight: bold;*/
