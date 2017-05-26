@@ -1,0 +1,32 @@
+
+The haskell project is in the "hakyll" directory.  Every time you run the stack command, you must be in that directory.
+
+From https://jaspervdj.be/hakyll/tutorials/02-basics.html
+
+    In general, you want to use stack exec site build when you just made changes to the contents of
+    your website. If you made changes to site.hs, you need to recompile site.hs followed by a rebuild:
+
+    $ stack build
+    $ stack exec site rebuild
+
+You can also launch a server:
+
+    $ stack exec site server
+    Listening on http://127.0.0.1:8000
+
+Better yet, the server can rebuild pages on the fly:
+
+    $ stack exec site watch
+
+The mechanism for integrating changes into master leaves something to be desired.
+
+    By running stack exec site build, you created two directories:
+
+    _site, with your site as HTML files, ready to be deployed;
+    _cache, which Hakyll uses internally.
+
+What we want to be deployed is the contents of hakyll/_site.  But these files aren't tracked by git.  So there is
+no merging strategy that will actually bring them into master.  I've just been manually copying _site into the
+root of master after running a merge --no-commit and removing the files git adds.
+
+In fact it might not be worth it to use merging at all...
