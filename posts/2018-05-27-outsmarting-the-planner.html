@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Appendix B: Outsmarting The Planner That Outsmarted Me</title>
+        <link rel="stylesheet" type="text/css" href="../css/default.css" />
+    </head>
+    <body>
+        <div id="header">
+            <div id="logo">
+                <a href="../">Appendix B</a>
+            </div>
+            <div id="navigation">
+                <a href="../">Home</a>
+                <a href="../about.html">About</a>
+                <a href="../contact.html">Contact</a>
+                <a href="../archive.html">Archive</a>
+            </div>
+        </div>
+
+        <div id="content">
+            <h1>Outsmarting The Planner That Outsmarted Me</h1>
+
+            <div class="info">
+    Posted on May 27, 2018
+    
+</div>
+
+<p>I’m a software engineer, not a data analyst. Nevertheless, I’ve had my fair share of experience reading and writing <em>escuelle</em>. And there’s this trend that I’ve seen. Just when you think it’s slowly going away (<a href="https://static.googleusercontent.com/media/research.google.com/en//archive/mapreduce-osdi04.pdf">MapReduce</a>), it comes back (<a href="https://issues.apache.org/jira/browse/CASSANDRA-1703">CQL</a>). Time (<a href="https://hive.apache.org/">Hive</a>) and time again (<a href="https://prestodb.io/">Presto</a>).</p>
+<p>I’m not fundamentally opposed to escuelle. I use it all the time. But I don’t consider the language itself to be one of great merit. It has its downsides (<a href="https://www.owasp.org/index.php/SQL_Injection">SQL Injection</a>). And it’s been at least implicated in one of the great crimes against software (<a href="https://en.wikipedia.org/wiki/List_of_object-relational_mapping_software">ORMs</a>).</p>
+<p>I suppose it’s like HTML. It’s not merit that keeps it around. It’s familiarity (<a href="https://angular.io/guide/template-syntax">Angular Templates</a>). Ubiquity, even (<a href="https://facebook.github.io/jsx/">JSX Spec</a>).</p>
+<p>I spent some time recently experimenting with <a href="https://rethinkdb.com/">RethinkDB</a>. Its own <a href="https://rethinkdb.com/docs/introduction-to-reql/">query language</a> looks nothing like escuelle. Now, I’m no stranger to transforming data sets through functional pipelines. Be it in Java, or Spark, or Clojure, or even bash, this is a common paradigm for me to work with. Still, ReQL comes with a <a href="https://rethinkdb.com/docs/table-joins/">learning curve</a>. Full disclosure, I found the <a href="https://rethinkdb.com/docs/sql-to-reql/javascript/">cheat sheet</a> extremely helpful.</p>
+<p>By their own admission, RethinkDB lacks a <a href="https://rethinkdb.com/docs/introduction-to-reql/#query-optimization">query optimizer</a>. At the time, I saw this as a limitation. I don’t anymore. Why? Because one day I switched back to escuelle, and I found that I was no longer in the driver’s seat.</p>
+<p>I was cobbling together something much larger, but here’s my simple starting point.</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">select</span> d.*
+<span class="kw">from</span> event_trace_up(<span class="st">'783eba47-9bf3-4fc6-898f-9b01cfe5bf64'</span>) t
+  <span class="kw">left</span> <span class="kw">join</span> drivetrain d <span class="kw">on</span> d.eventId = t.eventId
+;
+
+(<span class="dv">2</span> <span class="kw">rows</span>)
+
+Time: <span class="fl">2.269</span> ms</code></pre></div>
+<p>Only one of those two rows was the one I wanted, so I added a filter to limit the output. The performance <em>plummets</em>.</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">select</span> d.*
+<span class="kw">from</span> event_trace_up(<span class="st">'783eba47-9bf3-4fc6-898f-9b01cfe5bf64'</span>) t
+  <span class="kw">left</span> <span class="kw">join</span> drivetrain d <span class="kw">on</span> d.eventId = t.eventId
+<span class="kw">where</span> d.message @&gt; <span class="st">'{&quot;info&quot;:{&quot;triggeredBy&quot;:{&quot;@type&quot;:&quot;fs&quot;}}}'</span>
+;
+
+(<span class="dv">1</span> <span class="kw">row</span>)
+
+Time: <span class="fl">1650.500</span> ms (<span class="dv">00</span><span class="ch">:01</span><span class="fl">.650</span>)</code></pre></div>
+<p>Okay, PostgreSQL, explain yourself. The first query …</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">explain</span> <span class="kw">select</span> d.*
+<span class="kw">from</span> event_trace_up(<span class="st">'783eba47-9bf3-4fc6-898f-9b01cfe5bf64'</span>) t
+  <span class="kw">left</span> <span class="kw">join</span> drivetrain d <span class="kw">on</span> d.eventId = t.eventId
+;
+                                         <span class="kw">QUERY</span> <span class="kw">PLAN</span>                                          
+<span class="co">---------------------------------------------------------------------------------------------</span>
+ <span class="kw">Nested</span> <span class="kw">Loop</span> <span class="kw">Left</span> <span class="kw">Join</span>  (cost=<span class="fl">0.68</span>..<span class="fl">8076.75</span> rows=<span class="dv">1000</span> width=<span class="dv">1086</span>)
+   -&gt;  <span class="kw">Function</span> <span class="kw">Scan</span> <span class="kw">on</span> event_trace_up t  (cost=<span class="fl">0.25</span>..<span class="fl">10.25</span> rows=<span class="dv">1000</span> width=<span class="dv">16</span>)
+   -&gt;  <span class="kw">Index</span> <span class="kw">Scan</span> <span class="kw">using</span> drivetrain_pkey <span class="kw">on</span> drivetrain d  (cost=<span class="fl">0.42</span>..<span class="fl">8.07</span> rows=<span class="dv">1</span> width=<span class="dv">1086</span>)
+         <span class="kw">Index</span> Cond: (eventid = t.eventid)</code></pre></div>
+<p>… vs. the second.</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">explain</span> <span class="kw">select</span> d.*
+<span class="kw">from</span> event_trace_up(<span class="st">'783eba47-9bf3-4fc6-898f-9b01cfe5bf64'</span>) t
+  <span class="kw">left</span> <span class="kw">join</span> drivetrain d <span class="kw">on</span> d.eventId = t.eventId
+<span class="kw">where</span> d.message @&gt; <span class="st">'{&quot;info&quot;:{&quot;triggeredBy&quot;:{&quot;@type&quot;:&quot;fs&quot;}}}'</span>
+;
+                                              <span class="kw">QUERY</span> <span class="kw">PLAN</span>                                              
+<span class="co">------------------------------------------------------------------------------------------------------</span>
+ <span class="kw">Hash</span> <span class="kw">Join</span>  (cost=<span class="fl">3897.90</span>..<span class="fl">3920.53</span> rows=<span class="dv">1</span> width=<span class="dv">1086</span>)
+   <span class="kw">Hash</span> Cond: (t.eventid = d.eventid)
+   -&gt;  <span class="kw">Function</span> <span class="kw">Scan</span> <span class="kw">on</span> event_trace_up t  (cost=<span class="fl">0.25</span>..<span class="fl">10.25</span> rows=<span class="dv">1000</span> width=<span class="dv">16</span>)
+   -&gt;  <span class="kw">Hash</span>  (cost=<span class="fl">3885.06</span>..<span class="fl">3885.06</span> rows=<span class="dv">1007</span> width=<span class="dv">1086</span>)
+         -&gt;  <span class="kw">Bitmap</span> <span class="kw">Heap</span> <span class="kw">Scan</span> <span class="kw">on</span> drivetrain d  (cost=<span class="fl">107.81</span>..<span class="fl">3885.06</span> rows=<span class="dv">1007</span> width=<span class="dv">1086</span>)
+               Recheck Cond: (message @&gt; <span class="st">'{&quot;info&quot;: {&quot;triggeredBy&quot;: {&quot;@type&quot;: &quot;fs&quot;}}}'</span>:<span class="ch">:jsonb</span>)
+               -&gt;  <span class="kw">Bitmap</span> <span class="kw">Index</span> <span class="kw">Scan</span> <span class="kw">on</span> drivetrainmessageindex  (cost=<span class="fl">0.00</span>..<span class="fl">107.56</span> rows=<span class="dv">1007</span> width=<span class="dv">0</span>)
+                     <span class="kw">Index</span> Cond: (message @&gt; <span class="st">'{&quot;info&quot;: {&quot;triggeredBy&quot;: {&quot;@type&quot;: &quot;fs&quot;}}}'</span>:<span class="ch">:jsonb</span>)</code></pre></div>
+<p>Obviously the function is fast, and the index scan against the primary key is also fast. Scanning the jsonb index turns out to be several orders of magnitude slower, yet the planner puts that front and center in the plan for the second query. Now I have to fiddle with the syntax until I can outsmart the planner.</p>
+<p>A subquery does not regain performance …</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">select</span> q.*
+<span class="kw">from</span> (
+  <span class="kw">select</span> d.*
+  <span class="kw">from</span> event_trace_up(<span class="st">'783eba47-9bf3-4fc6-898f-9b01cfe5bf64'</span>) t
+    <span class="kw">left</span> <span class="kw">join</span> drivetrain d <span class="kw">on</span> d.eventId = t.eventId
+) q
+<span class="kw">where</span> q.message @&gt; <span class="st">'{&quot;info&quot;:{&quot;triggeredBy&quot;:{&quot;@type&quot;:&quot;fs&quot;}}}'</span>
+;
+
+(<span class="dv">1</span> <span class="kw">row</span>)
+
+Time: <span class="fl">1657.502</span> ms (<span class="dv">00</span><span class="ch">:01</span><span class="fl">.658</span>)</code></pre></div>
+<p>… because the plan does not change.</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">explain</span> <span class="kw">select</span> q.*
+<span class="kw">from</span> (
+  <span class="kw">select</span> d.*
+  <span class="kw">from</span> event_trace_up(<span class="st">'783eba47-9bf3-4fc6-898f-9b01cfe5bf64'</span>) t
+    <span class="kw">left</span> <span class="kw">join</span> drivetrain d <span class="kw">on</span> d.eventId = t.eventId
+) q
+<span class="kw">where</span> q.message @&gt; <span class="st">'{&quot;info&quot;:{&quot;triggeredBy&quot;:{&quot;@type&quot;:&quot;fs&quot;}}}'</span>
+;
+                                              <span class="kw">QUERY</span> <span class="kw">PLAN</span>                                              
+<span class="co">------------------------------------------------------------------------------------------------------</span>
+ <span class="kw">Hash</span> <span class="kw">Join</span>  (cost=<span class="fl">3897.90</span>..<span class="fl">3920.53</span> rows=<span class="dv">1</span> width=<span class="dv">1086</span>)
+   <span class="kw">Hash</span> Cond: (t.eventid = d.eventid)
+   -&gt;  <span class="kw">Function</span> <span class="kw">Scan</span> <span class="kw">on</span> event_trace_up t  (cost=<span class="fl">0.25</span>..<span class="fl">10.25</span> rows=<span class="dv">1000</span> width=<span class="dv">16</span>)
+   -&gt;  <span class="kw">Hash</span>  (cost=<span class="fl">3885.06</span>..<span class="fl">3885.06</span> rows=<span class="dv">1007</span> width=<span class="dv">1086</span>)
+         -&gt;  <span class="kw">Bitmap</span> <span class="kw">Heap</span> <span class="kw">Scan</span> <span class="kw">on</span> drivetrain d  (cost=<span class="fl">107.81</span>..<span class="fl">3885.06</span> rows=<span class="dv">1007</span> width=<span class="dv">1086</span>)
+               Recheck Cond: (message @&gt; <span class="st">'{&quot;info&quot;: {&quot;triggeredBy&quot;: {&quot;@type&quot;: &quot;fs&quot;}}}'</span>:<span class="ch">:jsonb</span>)
+               -&gt;  <span class="kw">Bitmap</span> <span class="kw">Index</span> <span class="kw">Scan</span> <span class="kw">on</span> drivetrainmessageindex  (cost=<span class="fl">0.00</span>..<span class="fl">107.56</span> rows=<span class="dv">1007</span> width=<span class="dv">0</span>)
+                     <span class="kw">Index</span> Cond: (message @&gt; <span class="st">'{&quot;info&quot;: {&quot;triggeredBy&quot;: {&quot;@type&quot;: &quot;fs&quot;}}}'</span>:<span class="ch">:jsonb</span>)</code></pre></div>
+<p>Thankfully, a common table expression does the trick:</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">with</span> q <span class="kw">as</span> (
+  <span class="kw">select</span> d.*
+  <span class="kw">from</span> event_trace_up(<span class="st">'783eba47-9bf3-4fc6-898f-9b01cfe5bf64'</span>) t
+    <span class="kw">left</span> <span class="kw">join</span> drivetrain d <span class="kw">on</span> d.eventId = t.eventId
+)
+<span class="kw">select</span> *
+<span class="kw">from</span> q
+<span class="kw">where</span> q.message @&gt; <span class="st">'{&quot;info&quot;:{&quot;triggeredBy&quot;:{&quot;@type&quot;:&quot;fs&quot;}}}'</span>
+;
+
+(<span class="dv">1</span> <span class="kw">row</span>)
+
+Time: <span class="fl">2.357</span> ms</code></pre></div>
+<p>And at last here’s the plan I was hoping for all along.</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">explain</span> <span class="kw">with</span> q <span class="kw">as</span> (
+  <span class="kw">select</span> d.*
+  <span class="kw">from</span> event_trace_up(<span class="st">'783eba47-9bf3-4fc6-898f-9b01cfe5bf64'</span>) t
+    <span class="kw">left</span> <span class="kw">join</span> drivetrain d <span class="kw">on</span> d.eventId = t.eventId
+)
+<span class="kw">select</span> *
+<span class="kw">from</span> q
+<span class="kw">where</span> q.message @&gt; <span class="st">'{&quot;info&quot;:{&quot;triggeredBy&quot;:{&quot;@type&quot;:&quot;fs&quot;}}}'</span>
+;
+                                             <span class="kw">QUERY</span> <span class="kw">PLAN</span>                                              
+<span class="co">-----------------------------------------------------------------------------------------------------</span>
+ CTE <span class="kw">Scan</span> <span class="kw">on</span> q  (cost=<span class="fl">8076.75</span>..<span class="fl">8099.25</span> rows=<span class="dv">1</span> width=<span class="dv">68</span>)
+   Filter: (message @&gt; <span class="st">'{&quot;info&quot;: {&quot;triggeredBy&quot;: {&quot;@type&quot;: &quot;fs&quot;}}}'</span>:<span class="ch">:jsonb</span>)
+   CTE q
+     -&gt;  <span class="kw">Nested</span> <span class="kw">Loop</span> <span class="kw">Left</span> <span class="kw">Join</span>  (cost=<span class="fl">0.68</span>..<span class="fl">8076.75</span> rows=<span class="dv">1000</span> width=<span class="dv">1086</span>)
+           -&gt;  <span class="kw">Function</span> <span class="kw">Scan</span> <span class="kw">on</span> event_trace_up t  (cost=<span class="fl">0.25</span>..<span class="fl">10.25</span> rows=<span class="dv">1000</span> width=<span class="dv">16</span>)
+           -&gt;  <span class="kw">Index</span> <span class="kw">Scan</span> <span class="kw">using</span> drivetrain_pkey <span class="kw">on</span> drivetrain d  (cost=<span class="fl">0.42</span>..<span class="fl">8.07</span> rows=<span class="dv">1</span> width=<span class="dv">1086</span>)
+                 <span class="kw">Index</span> Cond: (eventid = t.eventid)</code></pre></div>
+<p>Mind you, there was nothing semantically wrong with the first query. Or the second. And therein lies the problem. Escuelle is promoted as a <a href="https://www.fossil-scm.org/index.html/doc/trunk/www/theory1.wiki">high-level language</a> that enables you to solve your problems declaratively. Like so many things (<a href="https://projects.spring.io/spring-boot/">Spring Boot</a>), it’s great when it works, and it’s unnerving when it doesn’t.</p>
+
+        </div>
+        <div id="footer">
+            Powered by <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+        </div>
+    </body>
+</html>
