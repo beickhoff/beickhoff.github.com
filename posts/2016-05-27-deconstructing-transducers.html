@@ -58,7 +58,7 @@
 <li>Transferring the first <em>n</em> elements of a nonterminating sequence into a vector</li>
 </ul>
 <p>How does the step function know when to terminate? Because a vector records its own length, the step function can identify the terminal condition using only its first argument (the accumulated value). But such a step function takes on two responsibilities:</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>It conjoins elements to the vector.</li>
 <li>It measures the vector and terminates the process early based on the predetermined value of n.</li>
 </ol>
@@ -90,42 +90,42 @@
 </ul>
 <p>To begin, we’ll pick a step function with a single responsibility: conjoining elements to the vector (literally our step function is just <code>conj</code>). Then we’ll decorate that step function with an additional responsibility: nth-element-termination.</p>
 <p>Let’s build this decorator inside-out. Our goal is to create a step function.</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">(<span class="kw">fn</span> [acc x]
-  ...)</code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb2-1" title="1">(<span class="kw">fn</span> [acc x]</a>
+<a class="sourceLine" id="cb2-2" title="2">  ...)</a></code></pre></div>
 <p>That step function decorates another step function. So the process for building the new step function takes an original step function as a parameter.</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">(<span class="kw">fn</span> [original-step-fn]
-  (<span class="kw">fn</span> [acc x]
-     ...))</code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb3-1" title="1">(<span class="kw">fn</span> [original-step-fn]</a>
+<a class="sourceLine" id="cb3-2" title="2">  (<span class="kw">fn</span> [acc x]</a>
+<a class="sourceLine" id="cb3-3" title="3">     ...))</a></code></pre></div>
 <p>The base case is simply delegating to the original.</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">(<span class="kw">fn</span> [original-step-fn]
-  (<span class="kw">fn</span> [acc x]
-    (original-step-fn acc x)))</code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb4-1" title="1">(<span class="kw">fn</span> [original-step-fn]</a>
+<a class="sourceLine" id="cb4-2" title="2">  (<span class="kw">fn</span> [acc x]</a>
+<a class="sourceLine" id="cb4-3" title="3">    (original-step-fn acc x)))</a></code></pre></div>
 <p>At this point, it’s worth noting that we’ve effectively<sup>*</sup> written a transducer. (<sup>*</sup>Experienced readers may object regarding missing arities. This will be addressed later.)</p>
 <p>We also need to terminate the incremental processing early.</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">(<span class="kw">fn</span> [original-step-fn]
-  (<span class="kw">fn</span> [acc x]
-    (<span class="kw">if</span> we-have-not-yet-propagated-n-values
-      (original-step-fn acc x)
-      (reduced acc))))</code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb5-1" title="1">(<span class="kw">fn</span> [original-step-fn]</a>
+<a class="sourceLine" id="cb5-2" title="2">  (<span class="kw">fn</span> [acc x]</a>
+<a class="sourceLine" id="cb5-3" title="3">    (<span class="kw">if</span> we-have-not-yet-propagated-n-values</a>
+<a class="sourceLine" id="cb5-4" title="4">      (original-step-fn acc x)</a>
+<a class="sourceLine" id="cb5-5" title="5">      (reduced acc))))</a></code></pre></div>
 <p>Unlike before, we’ll make no assumptions that the accumulated value grows with each step, nor that it is countable, nor even that the task is computational. Instead we must internally track the number of elements we’ve propagated. That means our decorated step function will be stateful. This seemingly reckless introduction of state ought to concern you, but for now let’s continue. The end may justify the means.</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">(<span class="kw">fn</span> [original-step-fn]
-  (<span class="kw">let</span> [counter (volatile! <span class="dv">0</span>)]
-    (<span class="kw">fn</span> [acc x]
-      (<span class="kw">let</span> [i (vswap! counter <span class="kw">inc</span>)]
-        (<span class="kw">if</span> (<span class="kw">&lt;=</span> i some-predetermined-limit)
-          (original-step-fn acc x)
-          (reduced acc))))))</code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb6-1" title="1">(<span class="kw">fn</span> [original-step-fn]</a>
+<a class="sourceLine" id="cb6-2" title="2">  (<span class="kw">let</span> [counter (volatile! <span class="dv">0</span>)]</a>
+<a class="sourceLine" id="cb6-3" title="3">    (<span class="kw">fn</span> [acc x]</a>
+<a class="sourceLine" id="cb6-4" title="4">      (<span class="kw">let</span> [i (vswap! counter <span class="kw">inc</span>)]</a>
+<a class="sourceLine" id="cb6-5" title="5">        (<span class="kw">if</span> (<span class="kw">&lt;=</span> i some-predetermined-limit)</a>
+<a class="sourceLine" id="cb6-6" title="6">          (original-step-fn acc x)</a>
+<a class="sourceLine" id="cb6-7" title="7">          (reduced acc))))))</a></code></pre></div>
 <p>This is the <strong>take n</strong> transducer, though we still need to parametrize the “predetermined limit” of n. Ultimately, our top-level function is not a transducer itself but rather a transducer constructor.</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">(<span class="kw">defn</span><span class="fu"> taking </span>[n]
-  (<span class="kw">fn</span> [original-step-fn]
-    (<span class="kw">let</span> [counter (volatile! <span class="dv">0</span>)]
-      (<span class="kw">fn</span> [acc x]
-        (<span class="kw">let</span> [i (vswap! counter <span class="kw">inc</span>)]
-          (<span class="kw">if</span> (<span class="kw">&lt;=</span> i n)
-            (original-step-fn acc x)
-            (reduced acc)))))))</code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb7-1" title="1">(<span class="bu">defn</span><span class="fu"> taking </span>[n]</a>
+<a class="sourceLine" id="cb7-2" title="2">  (<span class="kw">fn</span> [original-step-fn]</a>
+<a class="sourceLine" id="cb7-3" title="3">    (<span class="kw">let</span> [counter (volatile! <span class="dv">0</span>)]</a>
+<a class="sourceLine" id="cb7-4" title="4">      (<span class="kw">fn</span> [acc x]</a>
+<a class="sourceLine" id="cb7-5" title="5">        (<span class="kw">let</span> [i (vswap! counter <span class="kw">inc</span>)]</a>
+<a class="sourceLine" id="cb7-6" title="6">          (<span class="kw">if</span> (<span class="kw">&lt;=</span> i n)</a>
+<a class="sourceLine" id="cb7-7" title="7">            (original-step-fn acc x)</a>
+<a class="sourceLine" id="cb7-8" title="8">            (reduced acc)))))))</a></code></pre></div>
 <p>At last, we can build the necessary step function out of reusable, single-responsibility pieces:</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">((taking n) <span class="kw">conj</span>)</code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb8-1" title="1">((taking n) <span class="kw">conj</span>)</a></code></pre></div>
 <h3 id="state">State</h3>
 <p>The introduction of mutable state should not be taken lightly. What has it bought us? The transducer built by our <code>taking</code> function is independent of context. It works with any types of input values and accumulated values. It works with any delegate step function. It works for both computational and effectual tasks.</p>
 <p>What has it cost us? The decorated step function – the one that the transducer returns – is impure. Its behavior changes. Call it twice with the same arguments and you won’t necessarily get the same result. It cannot be shared or reused. It has a shelf life and must be disposed of in the proper time. Such impure functions have their place, but this kind of function should be the exception, not the norm.</p>
@@ -142,7 +142,7 @@
 <p>Truth be told, I do not understand the init arity. In fact, my entire exploration into transducers started because I, like others, <a href="https://groups.google.com/d/topic/clojure/HK9LkmlRyjY/discussion">did not understand the init arity</a>. I still do not. As near as I can tell, it serves little purpose.</p>
 <h2 id="the-sum-total">The Sum Total</h2>
 <p>As stated previously, the domain of transducers is the domain of the incremental processing model. The incremental processing model is</p>
-<ol style="list-style-type: decimal">
+<ol type="1">
 <li>a set of input elements</li>
 <li>a reducing function which consumes the input elements, and</li>
 <li>a driving process which feeds the reducing function, having some computational or effectual goal.</li>
@@ -172,44 +172,44 @@
 <p>What about term frequency / word count? The input values could be words or lines from a corpus of text. The output could be the top ten most frequent terms. But there’s a problem. No output can be produced until we’ve consumed the entire corpus of text. Because of this, incremental processing is an awkward overall fit.</p>
 <p>Initially, I deemed this attempt a dud. However, after some prototyping, I realized this problem could be divided into two phases: (1) accumulating the table of word frequencies, and (2) emitting data from that table. Modeling each phase then becomes straightforward. Our approach is reaffirmed by the use of <code>(remove string/blank?)</code> and the natural addition of something like <code>(remove stop-words)</code>.</p>
 <p>Connecting the phases was less clear, though I feel like there is an interesting idea here worth behammocking: hooking into the completion phase of transduction.</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">(transduce                 <span class="co">; phase 1</span>
-  (<span class="kw">comp</span>
-    split-words
-    (<span class="kw">remove</span> string/blank?)
-    element-frequencies
-    (upon-completion       <span class="co">; connecting the two phases</span>
-      (<span class="kw">fn</span> [freqs]
-        (<span class="kw">into</span> []           <span class="co">; phase 2</span>
-          (<span class="kw">comp</span>
-            (<span class="kw">take</span> <span class="dv">10</span>)
-            (<span class="kw">map</span> <span class="kw">key</span>))
-          (<span class="kw">sort-by</span> <span class="kw">val</span> descending freqs)))))
-  nil
-  nil
-  some-corpus-of-text)</code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb9-1" title="1">(transduce                 <span class="co">; phase 1</span></a>
+<a class="sourceLine" id="cb9-2" title="2">  (<span class="kw">comp</span></a>
+<a class="sourceLine" id="cb9-3" title="3">    split-words</a>
+<a class="sourceLine" id="cb9-4" title="4">    (<span class="kw">remove</span> string/blank?)</a>
+<a class="sourceLine" id="cb9-5" title="5">    element-frequencies</a>
+<a class="sourceLine" id="cb9-6" title="6">    (upon-completion       <span class="co">; connecting the two phases</span></a>
+<a class="sourceLine" id="cb9-7" title="7">      (<span class="kw">fn</span> [freqs]</a>
+<a class="sourceLine" id="cb9-8" title="8">        (<span class="kw">into</span> []           <span class="co">; phase 2</span></a>
+<a class="sourceLine" id="cb9-9" title="9">          (<span class="kw">comp</span></a>
+<a class="sourceLine" id="cb9-10" title="10">            (<span class="kw">take</span> <span class="dv">10</span>)</a>
+<a class="sourceLine" id="cb9-11" title="11">            (<span class="kw">map</span> <span class="kw">key</span>))</a>
+<a class="sourceLine" id="cb9-12" title="12">          (<span class="kw">sort-by</span> <span class="kw">val</span> descending freqs)))))</a>
+<a class="sourceLine" id="cb9-13" title="13">  <span class="va">nil</span></a>
+<a class="sourceLine" id="cb9-14" title="14">  <span class="va">nil</span></a>
+<a class="sourceLine" id="cb9-15" title="15">  some-corpus-of-text)</a></code></pre></div>
 <p>(The curious may want to see the <a href="https://github.com/beickhoff/beickhoff.github.com/blob/5921254878f441234dcd585cadbf065bf2a0b11e/code/2016-05-27-deconstructing-transducers/src/beickhoff/deconstructing_transducers/word_count.clj">source code</a> and the <a href="https://github.com/beickhoff/beickhoff.github.com/blob/5921254878f441234dcd585cadbf065bf2a0b11e/code/2016-05-27-deconstructing-transducers/test/beickhoff/deconstructing_transducers/word_count_test.clj">test code</a>.)</p>
 <h3 id="json-parsing-transducer">JSON Parsing Transducer</h3>
 <p>What about parsing an unlimited stream of JSON values? I’ve made the input values arbitrary blocks of ASCII text. When a value is parsed, it is propagated to the delegate reducing function.</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">(<span class="kw">def</span><span class="fu"> json-channel </span>(a/chan <span class="dv">1</span> (<span class="kw">comp</span> lexer parser)))
-
-(&gt;! json-channel (byte-buf&lt;-string <span class="st">&quot;{</span>\&quot;<span class="st">success</span>\&quot;<span class="st">: true}&quot;</span>)))
-<span class="co">; =&gt; {&quot;success&quot; true}</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb10-1" title="1">(<span class="bu">def</span><span class="fu"> json-channel </span>(a/chan <span class="dv">1</span> (<span class="kw">comp</span> lexer parser)))</a>
+<a class="sourceLine" id="cb10-2" title="2"></a>
+<a class="sourceLine" id="cb10-3" title="3">(&gt;! json-channel (byte-buf&lt;-string <span class="st">&quot;{</span><span class="sc">\&quot;</span><span class="st">success</span><span class="sc">\&quot;</span><span class="st">: true}&quot;</span>)))</a>
+<a class="sourceLine" id="cb10-4" title="4"><span class="co">; =&gt; {&quot;success&quot; true}</span></a></code></pre></div>
 <p>This example is more interesting and seems to fit the incremental processing model, particularly as a channel transducer. But it’s still unclear whether there is a seed of a good idea here.</p>
 <p>(Only the brave dare gaze upon the <a href="https://github.com/beickhoff/beickhoff.github.com/blob/5921254878f441234dcd585cadbf065bf2a0b11e/code/2016-05-27-deconstructing-transducers/src/beickhoff/deconstructing_transducers/json.clj">source code</a> and the <a href="https://github.com/beickhoff/beickhoff.github.com/blob/5921254878f441234dcd585cadbf065bf2a0b11e/code/2016-05-27-deconstructing-transducers/test/beickhoff/deconstructing_transducers/json_test.clj">test code</a>.)</p>
 <h3 id="bowling-score-transducer">Bowling Score Transducer</h3>
 <p>What about calculating a bowling score? The input values could be pin counts for individual throws. Regarding output, we could design this a couple of different ways. This could be computational, synchronously processing all throws and yielding a scoreboard, <em>i.e.</em> a set of ten frames with throws and scores. This could also be effectual, synchronously or asynchronously processing throws, propagating frame scores as they are determined. I opted for the latter, partly for simplicity.</p>
-<div class="sourceCode"><pre class="sourceCode clojure"><code class="sourceCode clojure">(transduce (<span class="kw">comp</span> frame-scores cumulative-score) printing nil
-           [<span class="dv">10</span>, <span class="dv">0</span> <span class="dv">10</span>, <span class="dv">2</span> <span class="dv">3</span>, <span class="dv">7</span> <span class="dv">1</span>, <span class="dv">9</span> <span class="dv">1</span>, <span class="dv">6</span> <span class="dv">3</span>, <span class="dv">0</span> <span class="dv">0</span>, <span class="dv">9</span> <span class="dv">0</span>, <span class="dv">10</span>, <span class="dv">10</span> <span class="dv">10</span> <span class="dv">3</span>])
-<span class="dv">20</span>
-<span class="dv">32</span>
-<span class="dv">37</span>
-<span class="dv">45</span>
-<span class="dv">61</span>
-<span class="dv">70</span>
-<span class="dv">70</span>
-<span class="dv">79</span>
-<span class="dv">109</span>
-<span class="dv">132</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode clojure"><code class="sourceCode clojure"><a class="sourceLine" id="cb11-1" title="1">(transduce (<span class="kw">comp</span> frame-scores cumulative-score) printing <span class="va">nil</span></a>
+<a class="sourceLine" id="cb11-2" title="2">           [<span class="dv">10</span>, <span class="dv">0</span> <span class="dv">10</span>, <span class="dv">2</span> <span class="dv">3</span>, <span class="dv">7</span> <span class="dv">1</span>, <span class="dv">9</span> <span class="dv">1</span>, <span class="dv">6</span> <span class="dv">3</span>, <span class="dv">0</span> <span class="dv">0</span>, <span class="dv">9</span> <span class="dv">0</span>, <span class="dv">10</span>, <span class="dv">10</span> <span class="dv">10</span> <span class="dv">3</span>])</a>
+<a class="sourceLine" id="cb11-3" title="3"><span class="dv">20</span></a>
+<a class="sourceLine" id="cb11-4" title="4"><span class="dv">32</span></a>
+<a class="sourceLine" id="cb11-5" title="5"><span class="dv">37</span></a>
+<a class="sourceLine" id="cb11-6" title="6"><span class="dv">45</span></a>
+<a class="sourceLine" id="cb11-7" title="7"><span class="dv">61</span></a>
+<a class="sourceLine" id="cb11-8" title="8"><span class="dv">70</span></a>
+<a class="sourceLine" id="cb11-9" title="9"><span class="dv">70</span></a>
+<a class="sourceLine" id="cb11-10" title="10"><span class="dv">79</span></a>
+<a class="sourceLine" id="cb11-11" title="11"><span class="dv">109</span></a>
+<a class="sourceLine" id="cb11-12" title="12"><span class="dv">132</span></a></code></pre></div>
 <p>(Those remaining may want to see the <a href="https://github.com/beickhoff/beickhoff.github.com/blob/5921254878f441234dcd585cadbf065bf2a0b11e/code/2016-05-27-deconstructing-transducers/src/beickhoff/deconstructing_transducers/bowling.clj">source code</a> and the <a href="https://github.com/beickhoff/beickhoff.github.com/blob/5921254878f441234dcd585cadbf065bf2a0b11e/code/2016-05-27-deconstructing-transducers/test/beickhoff/deconstructing_transducers/bowling_test.clj">test code</a>.)</p>
 <h3 id="retrospection">Retrospection</h3>
 <p>We’ve written these as transducers because we could. But should we? Why opt to write a transducer-based solution? After all, it has an impact on our code. Many of the functions have to be written as impure multi-arity reducing functions. What’s the upshot?</p>
