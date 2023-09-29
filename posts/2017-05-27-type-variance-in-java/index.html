@@ -1,0 +1,74 @@
+
+<!doctype html>
+<html lang="en-US" />
+<head>
+  <link rel="stylesheet" href='https://beickhoff.github.io/css/index.css' />
+  <title>Appendix B: Supplemental Material</title>
+</head>
+<body>
+
+<div id="header">
+  <div class="title"><a href="/">Appendix B</a></div>
+  <div class="nav">
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+    <a href="/">Archive</a>
+  </div>
+</div>
+
+
+
+<h1>Type Variance in Java</h1>
+
+
+<div class="info">Posted on May 27, 2017</div>
+
+
+<p>Josh Bloch introduced me to type variance in <em>Effective Java</em>, but it was Martin Odersky who elucidated the bigger picture.  Type variance arises from the interplay between parametric polymorphism and subtype polymorphism.  Any language with both of these must have some story around type variance.</p>
+<p>Scala appears to have a thorough story of type variance.  Java has only a partial story, mostly under the moniker &ldquo;bounded wildcard type&rdquo;.</p>
+<p>Besides being incomplete, Java&rsquo;s story of type variance also requires variance to be repeatedly defined at use sites, not once at declaration sites.  If I define an immutable collection class, I would like to declare that it&rsquo;s covariant in its element type.  Instead, I must remember to redefine the covariance when I&rsquo;m using that type.</p>
+<p>Bounded wildcard types in Java are a difficult subject to tackle, and I can&rsquo;t say that I&rsquo;ve yet mastered it.  Indeed, it&rsquo;s easy for anyone to miss the opportunity for a bounded wildcard when writing a generic method.</p>
+<p>Which brings me to the topic at hand.  I came across a limitation of this type signature, one of the <code>Collectors#groupingBy</code> overloads:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-java" data-lang="java"><span class="line"><span class="cl"><span class="kd">public</span> <span class="kd">static</span> <span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">K</span><span class="o">,</span> <span class="n">A</span><span class="o">,</span> <span class="n">D</span><span class="o">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="n">Collector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="o">?,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">K</span><span class="o">,</span> <span class="n">D</span><span class="o">&gt;&gt;</span> <span class="nf">groupingBy</span><span class="o">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">Function</span><span class="o">&lt;?</span> <span class="kd">super</span> <span class="n">T</span><span class="o">,</span> <span class="o">?</span> <span class="kd">extends</span> <span class="n">K</span><span class="o">&gt;</span> <span class="n">classifier</span><span class="o">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">Collector</span><span class="o">&lt;?</span> <span class="kd">super</span> <span class="n">T</span><span class="o">,</span> <span class="n">A</span><span class="o">,</span> <span class="n">D</span><span class="o">&gt;</span> <span class="n">downstream</span><span class="o">)</span>
+</span></span></code></pre></div><p>We can already see some effective use of bounded wildcard types, as well as the need for use-site repetition.  The classifier function is contravariant in its input type parameter <code>T</code> and covariant in its output type parameter <code>K</code>.  No surprises here.</p>
+<p>But an opportunity appears to have been missed on the downstream collector.  The result type of the &ldquo;grouping by&rdquo; collector is a <code>Map&lt;K, D&gt;</code>.  This is a map which more or less reads and writes values of type <code>D</code>.  The values which are put into this map are being provided by the downstream collector.  But it&rsquo;s not necessary that the downstream collector provide exactly elements of type D.  It could provide elements of a subtype of D.</p>
+<p>So I adapted the declaration as follows, and added my adapter to a utility class:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-java" data-lang="java"><span class="line"><span class="cl"><span class="kd">public</span> <span class="kd">static</span> <span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="n">K</span><span class="o">,</span> <span class="n">A</span><span class="o">,</span> <span class="n">D</span><span class="o">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="n">Collector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">,</span> <span class="o">?,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">K</span><span class="o">,</span> <span class="n">D</span><span class="o">&gt;&gt;</span> <span class="nf">groupingBy</span><span class="o">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">Function</span><span class="o">&lt;?</span> <span class="kd">super</span> <span class="n">T</span><span class="o">,</span> <span class="o">?</span> <span class="kd">extends</span> <span class="n">K</span><span class="o">&gt;</span> <span class="n">classifier</span><span class="o">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">Collector</span><span class="o">&lt;?</span> <span class="kd">super</span> <span class="n">T</span><span class="o">,</span> <span class="n">A</span><span class="o">,</span> <span class="o">?</span> <span class="kd">extends</span> <span class="n">D</span><span class="o">&gt;</span> <span class="n">downstream</span><span class="o">)</span>
+</span></span><span class="line"><span class="cl"><span class="c1">//                                  ^^^^^^^^^^^
+</span></span></span></code></pre></div><p>I originally came across this limitation while using a custom downstream collector:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-java" data-lang="java"><span class="line"><span class="cl"><span class="kd">public</span> <span class="kd">static</span> <span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">X</span><span class="o">,</span> <span class="o">?,</span> <span class="n">ImmutableSet</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;&gt;</span> <span class="nf">toImmutableSet</span><span class="o">()</span> <span class="o">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">collectingAndThen</span><span class="o">(</span><span class="n">toSet</span><span class="o">(),</span> <span class="n">ImmutableSet</span><span class="o">::</span><span class="n">copyOf</span><span class="o">);</span>
+</span></span><span class="line"><span class="cl"><span class="o">}</span>
+</span></span></code></pre></div><p>Suppose for the sake of example that we define the following type:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-java" data-lang="java"><span class="line"><span class="cl"><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">Tuple</span><span class="o">&lt;</span><span class="n">A</span><span class="o">,</span> <span class="n">B</span><span class="o">&gt;</span> <span class="o">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">A</span> <span class="nf">fst</span><span class="o">();</span>
+</span></span><span class="line"><span class="cl">  <span class="n">B</span> <span class="nf">snd</span><span class="o">();</span>
+</span></span><span class="line"><span class="cl"><span class="o">}</span>
+</span></span></code></pre></div><p>And then suppose I have a stream of these tuples:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-java" data-lang="java"><span class="line"><span class="cl"><span class="kd">final</span> <span class="n">Stream</span><span class="o">&lt;</span><span class="n">Tuple</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">namedDataPoints</span> <span class="o">=</span> <span class="o">...;</span>
+</span></span></code></pre></div><p>It would seem reasonable to write this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-java" data-lang="java"><span class="line"><span class="cl"><span class="kd">final</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Set</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">dataPointsByName</span> <span class="o">=</span>
+</span></span><span class="line"><span class="cl">    <span class="n">namedDataPoints</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span>
+</span></span><span class="line"><span class="cl">        <span class="n">groupingBy</span><span class="o">(</span><span class="n">Tuple</span><span class="o">::</span><span class="n">fst</span><span class="o">,</span> <span class="n">mapping</span><span class="o">(</span><span class="n">Tuple</span><span class="o">::</span><span class="n">snd</span><span class="o">,</span> <span class="n">toImmutableSet</span><span class="o">())));</span>
+</span></span></code></pre></div><p>But the compiler won&rsquo;t allow this.  Because the declaration of <code>Collectors#groupingBy</code> accepts a downstream collector that is <em>invariant</em> in its result type, the compiler rejects our code.  <code>Set&lt;X&gt;</code> and <code>ImmutableSet&lt;X&gt;</code> are not the same type, so <code>D</code> cannot be any type.</p>
+<p>By making the downstream collector covariant in its result type, as shown above, the compiler resolves <code>D</code> to be <code>Set&lt;X&gt;</code> and permits a downstream collector whose result type is the subtype <code>ImmutableSet&lt;X&gt;</code>.</p>
+<p>One could argue that my <code>toImmutableSet</code> collector should declare its result type as <code>Set&lt;X&gt;</code> rather than <code>ImmutableSet&lt;X&gt;</code>, but this isn&rsquo;t satisfying.  <code>ImmutableSet&lt;X&gt;</code> is a subtype of <code>Set&lt;X&gt;</code>.  I should be able to declare the more specific type and let the system upcast to <del>the more generic type</del> the <em>less</em> specific type.</p>
+<p>One could argue the same point with the map declaration, the result of the reduction, but I would arrive at the same counterargument.</p>
+<p>In short, type variance in Java is tough to get right.  Case in point: my <code>groupingBy</code> adapter seems to work, but am I <em>entirely confident</em> that it doesn&rsquo;t compromise type safety?  No, I&rsquo;m not.</p>
+
+
+
+<div id="footer">
+</div>
+
+</body>
+
+
+

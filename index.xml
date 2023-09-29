@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Appendix B: Supplemental Material</title>
+    <link>https://beickhoff.github.io/</link>
+    <description>Recent content on Appendix B: Supplemental Material</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 27 May 2019 00:00:00 +0000</lastBuildDate><atom:link href="https://beickhoff.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Floating Point Fun</title>
+      <link>https://beickhoff.github.io/posts/2019-05-27-floating-point-fun/</link>
+      <pubDate>Mon, 27 May 2019 00:00:00 +0000</pubDate>
+      
+      <guid>https://beickhoff.github.io/posts/2019-05-27-floating-point-fun/</guid>
+      <description>One day, a particular test failed spontaneously and yet succeeded on the next run. Rooting out nondeterminism in tests is a favorite pastime of mine, so I went to work on this one.
+The symptom of the failure was a numerical mismatch:
+- &amp;#39;weekly_total&amp;#39;: 12.3, + &amp;#39;weekly_total&amp;#39;: 12.299999999999999, Immediately, one sees that floating point arithmetic is implicated here, but I was still surprised that this test failed only sporadically. That total is a sum over five floating point numbers all of which are hard-coded into the test.</description>
+    </item>
+    
+    <item>
+      <title>Outsmarting The Planner That Outsmarted Me</title>
+      <link>https://beickhoff.github.io/posts/2018-05-27-outsmarting-the-planner/</link>
+      <pubDate>Sun, 27 May 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://beickhoff.github.io/posts/2018-05-27-outsmarting-the-planner/</guid>
+      <description>I&amp;rsquo;m a software engineer, not a data analyst. Nevertheless, I&amp;rsquo;ve had my fair share of experience reading and writing escuelle. And there&amp;rsquo;s this trend that I&amp;rsquo;ve seen. Just when you think it&amp;rsquo;s slowly going away (MapReduce), it comes back (CQL). Time (Hive) and time again (Presto).
+I&amp;rsquo;m not fundamentally opposed to escuelle. I use it all the time. But I don&amp;rsquo;t consider the language itself to be one of great merit.</description>
+    </item>
+    
+    <item>
+      <title>Type Variance in Java</title>
+      <link>https://beickhoff.github.io/posts/2017-05-27-type-variance-in-java/</link>
+      <pubDate>Sat, 27 May 2017 00:00:00 +0000</pubDate>
+      
+      <guid>https://beickhoff.github.io/posts/2017-05-27-type-variance-in-java/</guid>
+      <description>Josh Bloch introduced me to type variance in Effective Java, but it was Martin Odersky who elucidated the bigger picture. Type variance arises from the interplay between parametric polymorphism and subtype polymorphism. Any language with both of these must have some story around type variance.
+Scala appears to have a thorough story of type variance. Java has only a partial story, mostly under the moniker &amp;ldquo;bounded wildcard type&amp;rdquo;.
+Besides being incomplete, Java&amp;rsquo;s story of type variance also requires variance to be repeatedly defined at use sites, not once at declaration sites.</description>
+    </item>
+    
+    <item>
+      <title>Deconstructing Transducers</title>
+      <link>https://beickhoff.github.io/posts/2016-05-27-deconstructing-transducers/</link>
+      <pubDate>Fri, 27 May 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://beickhoff.github.io/posts/2016-05-27-deconstructing-transducers/</guid>
+      <description>Transducers are a relatively new tool in the Clojure toolbox. A couple of posts on the Clojure Google Group clued me into my own ignorance of transducers. So I decided to explore them.
+The Foundation: Incremental Processing Understanding the domain of transducers starts with incremental processing. Consider a step function, i.e. a function with the following signature:
+(acc, x) -&amp;gt; acc&amp;#39; It starts with an initial value (a zero value) and incrementally consumes input.</description>
+    </item>
+    
+    <item>
+      <title>About</title>
+      <link>https://beickhoff.github.io/about/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://beickhoff.github.io/about/</guid>
+      <description>Appendix B: Supplemental Material</description>
+    </item>
+    
+    <item>
+      <title>Contact</title>
+      <link>https://beickhoff.github.io/contact/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://beickhoff.github.io/contact/</guid>
+      <description>github.com/beickhoff</description>
+    </item>
+    
+  </channel>
+</rss>

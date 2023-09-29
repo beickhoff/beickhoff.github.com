@@ -1,0 +1,96 @@
+
+<!doctype html>
+<html lang="en-US" />
+<head>
+  <link rel="stylesheet" href='https://beickhoff.github.io/css/index.css' />
+  <title>Appendix B: Supplemental Material</title>
+</head>
+<body>
+
+<div id="header">
+  <div class="title"><a href="/">Appendix B</a></div>
+  <div class="nav">
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+    <a href="/">Archive</a>
+  </div>
+</div>
+
+
+
+<h1>Floating Point Fun</h1>
+
+
+<div class="info">Posted on May 27, 2019</div>
+
+
+<p>One day, a particular test failed spontaneously and yet succeeded on the next run.  Rooting out nondeterminism in tests is a favorite pastime of mine, so I went to work on this one.</p>
+<p>The symptom of the failure was a numerical mismatch:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-txt" data-lang="txt"><span class="line"><span class="cl">-   &#39;weekly_total&#39;: 12.3,
+</span></span><span class="line"><span class="cl">+   &#39;weekly_total&#39;: 12.299999999999999,
+</span></span></code></pre></div><p>Immediately, one sees that floating point arithmetic is implicated here, but I was still surprised that this test failed only <em>sporadically</em>.  That total is a sum over five floating point numbers all of which are hard-coded into the test.  Could the representation of those numbers change per run of the test?  That didn&rsquo;t seem reasonable.  However, what could change is the <em>ordering</em> of the numbers.</p>
+<p>Of the five floats, two were whole numbers and did not contribute to the problem.  Here are the remaining three numbers:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.83</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">]</span>
+</span></span></code></pre></div><p>Since the ordering could change, I thought I should compare the sums over every possible permutation.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">permutations</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">for_each_permutation</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">  <span class="k">for</span> <span class="n">permutation</span> <span class="ow">in</span> <span class="n">permutations</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">numbers</span><span class="p">))):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">xs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="n">numbers</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">permutation</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> --&gt; </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">f</span><span class="p">(</span><span class="n">xs</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">for_each_permutation</span><span class="p">(</span><span class="k">lambda</span> <span class="n">xs</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">1.83</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">1.83</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">5.67</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">5.67</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span></code></pre></div><p>On the surface everything seems fine.  But the Python REPL is glossing over the critical details, evidently for readability.  We can see this using the <code>repr()</code> built-in:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">for_each_permutation</span><span class="p">(</span><span class="k">lambda</span> <span class="n">xs</span><span class="p">:</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">1.83</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">1.83</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.299999999999999</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">5.67</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.3</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">5.67</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.299999999999999</span>
+</span></span></code></pre></div><p>And the problem is revealed.  Sure enough, these sums are not equal:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="o">&gt;&gt;&gt;</span> <span class="nb">sum</span><span class="p">([</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">==</span> <span class="nb">sum</span><span class="p">([</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="kc">False</span>
+</span></span></code></pre></div><p>Taking a step back, these values should never have been modeled as floats.  For the data we&rsquo;re trying to capture here, a rational number would have been best (<code>Fraction</code> in Python), though a <code>Decimal</code> would have sufficed.  I didn&rsquo;t have the luxury of changing the model at that moment, so the inputs were going to remain floats.  What I could change was the code that calculated the sum.</p>
+<p>Because <code>Decimal</code> is so good at preserving the noise from floating point numbers, a straightforward conversion from <code>float</code> inputs to <code>Decimal</code> intermediates is not the cleanest option, although it does regain determinism:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">decimal</span> <span class="kn">import</span> <span class="n">Decimal</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">for_each_permutation</span><span class="p">(</span><span class="k">lambda</span> <span class="n">xs</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">Decimal</span><span class="p">,</span> <span class="n">xs</span><span class="p">),</span> <span class="n">Decimal</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">1.83</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.29999999999999982236431606</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">1.83</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.29999999999999982236431606</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.29999999999999982236431606</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.29999999999999982236431606</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">5.67</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.29999999999999982236431606</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">5.67</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.29999999999999982236431606</span>
+</span></span></code></pre></div><p>Instead, and somewhat surprisingly, we can again use the <code>repr()</code> built-in together with the <code>Decimal</code> constructor to get the numbers we really wanted.  Sadly, I have to use this pattern so often now that I&rsquo;ve given it a shorthand, <code>D</code>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">D</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">Decimal</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">for_each_permutation</span><span class="p">(</span><span class="k">lambda</span> <span class="n">xs</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">xs</span><span class="p">),</span> <span class="n">D</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">1.83</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.30</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">1.83</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.30</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.30</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">2.8</span><span class="p">,</span> <span class="mf">5.67</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.30</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">5.67</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.30</span>
+</span></span><span class="line"><span class="cl"><span class="p">[</span><span class="mf">5.67</span><span class="p">,</span> <span class="mf">2.8</span><span class="p">,</span> <span class="mf">1.83</span><span class="p">]</span> <span class="o">--&gt;</span> <span class="mf">10.30</span>
+</span></span></code></pre></div><p>The moral of the story?  <strong>Floating point addition is not commutative</strong>.</p>
+
+
+
+<div id="footer">
+</div>
+
+</body>
+
+
+

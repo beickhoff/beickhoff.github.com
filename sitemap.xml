@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://beickhoff.github.io/</loc>
+    <lastmod>2019-05-27T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://beickhoff.github.io/posts/2019-05-27-floating-point-fun/</loc>
+    <lastmod>2019-05-27T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://beickhoff.github.io/posts/</loc>
+    <lastmod>2019-05-27T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://beickhoff.github.io/posts/2018-05-27-outsmarting-the-planner/</loc>
+    <lastmod>2018-05-27T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://beickhoff.github.io/posts/2017-05-27-type-variance-in-java/</loc>
+    <lastmod>2017-05-27T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://beickhoff.github.io/posts/2016-05-27-deconstructing-transducers/</loc>
+    <lastmod>2016-05-27T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://beickhoff.github.io/about/</loc>
+  </url><url>
+    <loc>https://beickhoff.github.io/categories/</loc>
+  </url><url>
+    <loc>https://beickhoff.github.io/contact/</loc>
+  </url><url>
+    <loc>https://beickhoff.github.io/tags/</loc>
+  </url>
+</urlset>
