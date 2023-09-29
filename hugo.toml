@@ -1,4 +1,5 @@
 baseURL = 'https://beickhoff.github.io/'
+disableHugoGeneratorInject = true
 languageCode = 'en-us'
 title = 'Appendix B: Supplemental Material'
 
