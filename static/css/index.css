@@ -1,0 +1,87 @@
+
+@import url(https://cdnjs.cloudflare.com/ajax/libs/normalize/4.1.1/normalize.min.css);
+@import url(https://fonts.googleapis.com/css?family=Montserrat:400,700);
+@import url(https://fonts.googleapis.com/css?family=Lora:400,400italic,700);
+@import url(./syntax-highlighting.css);
+
+body {
+  width: 768px;
+  margin: 0 auto;
+  font-size: 18px;
+  color: black;
+  font-family: 'Lora', serif;
+}
+
+code {
+  font-size: 0.9em;
+}
+
+a:link, a:visited, a:hover, a:focus, a:active {
+  color: inherit;
+}
+
+h1 {
+  font-size: 1.5em;
+}
+
+h2 {
+  font-size: 1.25em;
+}
+
+div.info {
+  color: #555;
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+#header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+
+  margin: 1.5em 0;
+  padding: 0.5em 0;
+  border-top: 2px solid #bbb;
+  border-bottom: 2px solid #bbb;
+
+  font-family: 'Montserrat', sans-serif;
+  font-variant: small-caps;
+}
+
+#footer {
+  margin: 1.5em 0;
+  padding: 0.5em 0;
+  border-top: 2px solid #bbb;
+
+  font-family: 'Montserrat', sans-serif;
+  font-variant: small-caps;
+}
+
+#header a {
+  text-decoration: none;
+  font-weight: bold;
+}
+
+#header .title {
+  display: inline-block;
+}
+
+#header .title a {
+  font-size: 1.5em;
+}
+
+#header .nav {
+  display: inline-block;
+}
+
+#header .nav a {
+  margin-left: 0.75em;
+}
+
+#subtitle {
+  font-size: 1.25em;
+}
+
+
+
+

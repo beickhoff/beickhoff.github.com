@@ -1,0 +1,17 @@
+
+{{ partial "header.html" . }}
+
+<div id="content">
+  <h1 id="subtitle">Supplemental Material</h1>
+  <ul>
+  {{ range sort (where .Site.RegularPages ".Permalink" "like" `/posts/`) ".Date" "desc" }}
+    <li>
+      <a href="{{ .Permalink }}">{{ .Title }}</a>
+      — {{ .Date.Format "January 2, 2006" }}
+    </li>
+  {{ end }}
+  </ul>
+</div>
+
+{{ partial "footer.html" . }}
+

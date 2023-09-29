@@ -1,0 +1,9 @@
+baseURL = 'https://beickhoff.github.io/'
+languageCode = 'en-us'
+title = 'Appendix B: Supplemental Material'
+
+[markup]
+  [markup.highlight]
+    noClasses = false
+  [markup.goldmark.renderer]
+    unsafe = true
