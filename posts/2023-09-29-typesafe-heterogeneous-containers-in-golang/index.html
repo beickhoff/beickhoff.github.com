@@ -1,0 +1,144 @@
+
+<!doctype html>
+<html lang="en-US" />
+<head>
+  <link rel="stylesheet" href='https://beickhoff.github.io/css/index.css' />
+  <title>Appendix B: Supplemental Material</title>
+</head>
+<body>
+
+<div id="header">
+  <div class="title"><a href="/">Appendix B</a></div>
+  <div class="nav">
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+    <a href="/">Archive</a>
+  </div>
+</div>
+
+
+
+<h1>Typesafe Heterogeneous Containers in Golang</h1>
+
+
+<div class="info">Posted on September 29, 2023</div>
+
+
+<p><strong>The following is one implementation of Typesafe Heterogeneous Containers in Golang.</strong>  Actually, it&rsquo;s more than one implementation because I leave open a few options.  So for those who don&rsquo;t know, what are Typesafe Heterogeneous Containers?</p>
+<p><strong>Like an ordinary Go map, it&rsquo;s a key+value data structure.</strong></p>
+<p><strong>Unlike a map, it can contain values of arbitrary types but with compile-time type checking.</strong>  With ordinary Go maps, you don&rsquo;t get both.  If you want values of arbitrary types, you lose the compile-time type checking.  For example, <code>map[string]any</code> is going to require run-time type checks (type assertions).</p>
+<p><strong>The trick is to parameterize the keys, not the container.</strong>  And when I say &ldquo;parameterize&rdquo; here, I&rsquo;m talking about type parameters.</p>
+<p><strong>Let&rsquo;s model this as Key and Container.</strong>  Note that I actually prefer the name &ldquo;Map&rdquo; instead of &ldquo;Container&rdquo;, but the terminology would get confusing below.</p>
+<p><strong>Each Key instance is a pointer to a generic Key struct.</strong>  We use a pointer because it acts as a unique ID for each Key instance at run-time.  We use a generic struct because it allows type checking at compile-time.  The struct&rsquo;s type parameter names the type of the corresponding Value.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Key</span><span class="p">[</span><span class="nx">V</span> <span class="nx">any</span><span class="p">]</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">mustBeNonempty</span> <span class="kt">uint8</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Example Keys
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">Scheme</span>   <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Key</span><span class="p">[</span><span class="kt">string</span><span class="p">]{}</span>
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">Hostname</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Key</span><span class="p">[</span><span class="kt">string</span><span class="p">]{}</span>
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">Port</span>     <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Key</span><span class="p">[</span><span class="kt">uint16</span><span class="p">]{}</span>
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">Payload</span>  <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Key</span><span class="p">[[]</span><span class="kt">byte</span><span class="p">]{}</span>
+</span></span></code></pre></div><p>Interestingly, the struct must be nonempty, even though we make no use of the field.  If the struct were empty, the runtime would only ever create a single instance shared by all instantiations, and the pointers would no longer be unique.  (Ask me how I know.)</p>
+<p>A better use of the field might be to store the name of the Key as a string.  This would surely aid debugging or logging.</p>
+<p><strong>The Container is backed by an ordinary map.</strong>  That means we need some uniform type for map values (elements).  We even need an alternate type for map keys, because <code>*Key[V]</code> doesn&rsquo;t work.  It&rsquo;s only a type constructor, not a concrete type &ndash; or what the Language Spec calls an instantiated type.</p>
+<p><strong>Map Option 1:  An ordinary map of interface values to interface values.</strong>  This is the natural choice in Go, although I have to admit I was surprised that Go even allows an interface type as the key type.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Container</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">m</span> <span class="kd">map</span><span class="p">[</span><span class="nx">any</span><span class="p">]</span><span class="nx">any</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><strong>Map Option 2:  An ordinary map of pointers to pointers.</strong>  I mean raw pointers.  This approach is questionable at best, but as a historical note this is the first implementation I succeeded with.  Anecdotally, I found this variation to be somewhat faster.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Container</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">m</span> <span class="kd">map</span><span class="p">[</span><span class="nx">unsafe</span><span class="p">.</span><span class="nx">Pointer</span><span class="p">]</span><span class="nx">unsafe</span><span class="p">.</span><span class="nx">Pointer</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><strong>The basic read/write Container API cannot be defined as ordinary methods.</strong>  Methods in Go cannot have type parameters, so the obvious constructions like <code>func (c *Container) Put[V](k *Key[V], v V)</code> are ruled out.  Obviously, other methods would be fine: <code>func (c *Container) Clear()</code>.</p>
+<p><strong>API Option 1:  Define the read/write API as top-level functions.</strong></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nx">ContainerPut</span><span class="p">[</span><span class="nx">V</span> <span class="nx">any</span><span class="p">](</span><span class="nx">c</span> <span class="o">*</span><span class="nx">Container</span><span class="p">,</span> <span class="nx">k</span> <span class="o">*</span><span class="nx">Key</span><span class="p">[</span><span class="nx">V</span><span class="p">],</span> <span class="nx">v</span> <span class="nx">V</span><span class="p">)</span> <span class="p">{</span> <span class="err">…</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nx">ContainerGet</span><span class="p">[</span><span class="nx">V</span> <span class="nx">any</span><span class="p">](</span><span class="nx">c</span> <span class="o">*</span><span class="nx">Container</span><span class="p">,</span> <span class="nx">k</span> <span class="o">*</span><span class="nx">Key</span><span class="p">[</span><span class="nx">V</span><span class="p">])</span> <span class="p">(</span><span class="nx">V</span><span class="p">,</span> <span class="kt">bool</span><span class="p">)</span> <span class="p">{</span> <span class="err">…</span> <span class="p">}</span>
+</span></span></code></pre></div><p><strong>API Option 2:  Define the read/write API as methods on Key.</strong></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">k</span> <span class="o">*</span><span class="nx">Key</span><span class="p">[</span><span class="nx">V</span><span class="p">])</span> <span class="nf">Put</span><span class="p">(</span><span class="nx">c</span> <span class="o">*</span><span class="nx">Container</span><span class="p">,</span> <span class="nx">v</span> <span class="nx">V</span><span class="p">)</span> <span class="p">{</span> <span class="err">…</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">k</span> <span class="o">*</span><span class="nx">Key</span><span class="p">[</span><span class="nx">V</span><span class="p">])</span> <span class="nf">Get</span><span class="p">(</span><span class="nx">c</span> <span class="o">*</span><span class="nx">Container</span><span class="p">)</span> <span class="p">(</span><span class="nx">V</span><span class="p">,</span> <span class="kt">bool</span><span class="p">)</span> <span class="p">{</span> <span class="err">…</span> <span class="p">}</span>
+</span></span></code></pre></div><p>Obviously, you can choose different names if you don&rsquo;t like &ldquo;put&rdquo; and &ldquo;get&rdquo;: read/write, load/store, peek/poke, whatever.</p>
+<p>Here&rsquo;s a complete example using Map Option 1 and API Option 1.  Think of this as a variation of <code>context.Context</code> with compile-time type checking.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Key</span><span class="p">[</span><span class="nx">V</span> <span class="nx">any</span><span class="p">]</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">_</span> <span class="kt">uint8</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Container</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">m</span> <span class="kd">map</span><span class="p">[</span><span class="nx">any</span><span class="p">]</span><span class="nx">any</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">ContainerNew</span><span class="p">()</span> <span class="o">*</span><span class="nx">Container</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="o">&amp;</span><span class="nx">Container</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">m</span><span class="p">:</span> <span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="nx">any</span><span class="p">]</span><span class="nx">any</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nx">ContainerPut</span><span class="p">[</span><span class="nx">V</span> <span class="nx">any</span><span class="p">](</span><span class="nx">c</span> <span class="o">*</span><span class="nx">Container</span><span class="p">,</span> <span class="nx">k</span> <span class="o">*</span><span class="nx">Key</span><span class="p">[</span><span class="nx">V</span><span class="p">],</span> <span class="nx">v</span> <span class="nx">V</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">c</span><span class="p">.</span><span class="nx">m</span><span class="p">[</span><span class="nx">k</span><span class="p">]</span> <span class="p">=</span> <span class="nx">v</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nx">ContainerGet</span><span class="p">[</span><span class="nx">V</span> <span class="nx">any</span><span class="p">](</span><span class="nx">c</span> <span class="o">*</span><span class="nx">Container</span><span class="p">,</span> <span class="nx">k</span> <span class="o">*</span><span class="nx">Key</span><span class="p">[</span><span class="nx">V</span><span class="p">])</span> <span class="p">(</span><span class="nx">V</span><span class="p">,</span> <span class="kt">bool</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">entry</span><span class="p">,</span> <span class="nx">found</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">m</span><span class="p">[</span><span class="nx">k</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">  <span class="kd">var</span> <span class="nx">v</span> <span class="nx">V</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="nx">found</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">v</span> <span class="p">=</span> <span class="nx">entry</span><span class="p">.(</span><span class="nx">V</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="nx">v</span><span class="p">,</span> <span class="nx">found</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// ----------------------------------------------------------
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">Hostname</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Key</span><span class="p">[</span><span class="kt">string</span><span class="p">]{}</span>
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">Port</span>     <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Key</span><span class="p">[</span><span class="kt">uint16</span><span class="p">]{}</span>
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">Verbose</span>  <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Key</span><span class="p">[</span><span class="kt">bool</span>  <span class="p">]{}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">ctx</span> <span class="o">:=</span> <span class="nf">ContainerNew</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="nf">ContainerPut</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">Hostname</span><span class="p">,</span> <span class="s">&#34;example.com&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ContainerPut</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">Port</span>    <span class="p">,</span> <span class="mi">5432</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ContainerPut</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">Verbose</span> <span class="p">,</span> <span class="kc">true</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kd">var</span> <span class="nx">hostname</span> <span class="kt">string</span>
+</span></span><span class="line"><span class="cl">    <span class="kd">var</span> <span class="nx">port</span>     <span class="kt">uint16</span>
+</span></span><span class="line"><span class="cl">    <span class="kd">var</span> <span class="nx">verbose</span>  <span class="kt">bool</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nx">hostname</span><span class="p">,</span> <span class="nx">_</span> <span class="p">=</span> <span class="nf">ContainerGet</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">Hostname</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">port</span>    <span class="p">,</span> <span class="nx">_</span> <span class="p">=</span> <span class="nf">ContainerGet</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">Port</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">verbose</span> <span class="p">,</span> <span class="nx">_</span> <span class="p">=</span> <span class="nf">ContainerGet</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">Verbose</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s">&#34;hostname = &#34;</span><span class="p">,</span> <span class="nx">hostname</span><span class="p">,</span> <span class="s">&#34;\n&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s">&#34;port     = &#34;</span><span class="p">,</span> <span class="nx">port</span>    <span class="p">,</span> <span class="s">&#34;\n&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s">&#34;verbose  = &#34;</span><span class="p">,</span> <span class="nx">verbose</span> <span class="p">,</span> <span class="s">&#34;\n&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>Most Go programmers will balk at the format of the code, but it does run.  Style aside, the demo code doesn&rsquo;t look that amazing, does it?  So what&rsquo;s the big deal?</p>
+<p><strong>The real win isn&rsquo;t the code you can write; it&rsquo;s the code you <em><strong>can&rsquo;t</strong></em> write.</strong></p>
+<p>Imagine the following copy/paste error:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl">    <span class="nx">port</span><span class="p">,</span> <span class="nx">_</span> <span class="p">=</span> <span class="nf">ContainerGet</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">Hostname</span><span class="p">)</span>
+</span></span></code></pre></div><p>This is now caught at compile-time:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-txt" data-lang="txt"><span class="line"><span class="cl">… cannot use ContainerGet(ctx, Hostname) (value of type string) as
+</span></span><span class="line"><span class="cl">uint16 value in assignment
+</span></span></code></pre></div><p>If every call site needed to use a type assertion, these sorts of issues wouldn&rsquo;t be caught until run-time.</p>
+<p>Writes get the same benefit:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl">  <span class="nf">ContainerPut</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">Hostname</span><span class="p">,</span> <span class="mi">5432</span><span class="p">)</span>
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-txt" data-lang="txt"><span class="line"><span class="cl">… cannot use 5432 (untyped int constant) as string value in argument
+</span></span><span class="line"><span class="cl">to ContainerPut
+</span></span></code></pre></div><p>Typesafe Heterogeneous Containers are by no means a replacement for ordinary maps.  You still want ordinary maps, say about 97% of the time.  But the other 3% of the time, it&rsquo;s much better to have type checks at compile-time.</p>
+
+
+
+<div id="footer">
+</div>
+
+</body>
+
+
+

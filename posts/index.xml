@@ -6,7 +6,18 @@
     <description>Recent content in Posts on Appendix B: Supplemental Material</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 27 May 2019 00:00:00 +0000</lastBuildDate><atom:link href="https://beickhoff.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Fri, 29 Sep 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://beickhoff.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Typesafe Heterogeneous Containers in Golang</title>
+      <link>https://beickhoff.github.io/posts/2023-09-29-typesafe-heterogeneous-containers-in-golang/</link>
+      <pubDate>Fri, 29 Sep 2023 00:00:00 +0000</pubDate>
+      
+      <guid>https://beickhoff.github.io/posts/2023-09-29-typesafe-heterogeneous-containers-in-golang/</guid>
+      <description>The following is one implementation of Typesafe Heterogeneous Containers in Golang. Actually, it&amp;rsquo;s more than one implementation because I leave open a few options. So for those who don&amp;rsquo;t know, what are Typesafe Heterogeneous Containers?
+Like an ordinary Go map, it&amp;rsquo;s a key+value data structure.
+Unlike a map, it can contain values of arbitrary types but with compile-time type checking. With ordinary Go maps, you don&amp;rsquo;t get both. If you want values of arbitrary types, you lose the compile-time type checking.</description>
+    </item>
+    
     <item>
       <title>Floating Point Fun</title>
       <link>https://beickhoff.github.io/posts/2019-05-27-floating-point-fun/</link>
